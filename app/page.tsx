@@ -1,4 +1,5 @@
 import Link from "next/link"
+import ReservationStatus from "@/components/ReservationStatus"
 
 export default function Home() {
   return (
@@ -157,6 +158,7 @@ export default function Home() {
           </div>
         </div>
       </section>
+      <ReservationStatus />
     </main>
   )
 }
