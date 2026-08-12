@@ -58,7 +58,7 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Contact */}
+          {/* Contact 
           <div>
             <p className="text-[10px] tracking-[0.25em] text-[#c6aa73]">
               CONTACT
@@ -69,6 +69,7 @@ export default function Footer() {
               <p>카카오톡 추후 입력</p>
             </div>
           </div>
+*/}
         </div>
 
         <div className="mt-12 border-t border-white/10 pt-6">

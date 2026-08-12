@@ -9,6 +9,7 @@ import Process from "@/components/home/Process"
 import FAQ from "@/components/home/FAQ"
 import CTA from "@/components/home/CTA"
 import Footer from "@/components/layout/Footer"
+import KakaoFloatingButton from "@/components/common/KakaoFloatingButton"
 
 export default function Home() {
   return (
@@ -34,6 +35,7 @@ export default function Home() {
       <CTA />
 
       <Footer />
+      <KakaoFloatingButton />
     </main>
   )
 }
