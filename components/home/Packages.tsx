@@ -1,136 +1,336 @@
-import Link from "next/link"
+"use client"
 
-const packages = [
-  {
-    name: "한측",
-    subtitle: "2인 1조",
-    normalPrice: "400,000원",
-    eventPrice: "200,000원",
-    hours: "기본 2시간",
-    guests: "보증인원 100명",
-    extra: "50명 추가 시 +100,000원",
-    featured: false,
-  },
-  {
-    name: "양측",
-    subtitle: "2인 1조 × 2팀",
-    normalPrice: "600,000원",
-    eventPrice: "400,000원",
-    hours: "기본 2시간",
-    guests: "보증인원 100명",
-    extra: "50명 추가 시 +100,000원",
-    featured: true,
-  },
-]
+import { useEffect, useState } from "react"
+
+type PackageItem = {
+  id: string
+  name: string
+  code: string
+  originalPrice: number
+  salePrice: number
+  staff: string
+  basicHours: number
+  guaranteedGuests: number
+  extraGuestUnit: number
+  extraFee: number
+  eventLabel: string
+  eventDescription: string
+  startDate: string
+  endDate: string
+  order: number
+}
+
+type ApiResponse = {
+  packages: PackageItem[]
+}
+
+function formatPrice(price: number) {
+  return new Intl.NumberFormat("ko-KR").format(price)
+}
+
+function isEventActive(
+  startDate: string,
+  endDate: string
+) {
+  const now = new Date()
+
+  const today =
+    `${now.getFullYear()}-` +
+    `${String(now.getMonth() + 1).padStart(2, "0")}-` +
+    `${String(now.getDate()).padStart(2, "0")}`
+
+  if (startDate && today < startDate) {
+    return false
+  }
+
+  if (endDate && today > endDate) {
+    return false
+  }
+
+  return true
+}
 
 export default function Packages() {
+  const [packages, setPackages] =
+    useState<PackageItem[]>([])
+
+  const [loading, setLoading] =
+    useState(true)
+
+  const [error, setError] =
+    useState(false)
+
+  useEffect(() => {
+    async function loadPackages() {
+      try {
+        setLoading(true)
+        setError(false)
+
+        const response = await fetch(
+          "/api/prices",
+          {
+            cache: "no-store",
+          }
+        )
+
+        if (!response.ok) {
+          throw new Error(
+            "상품 정보 조회 실패"
+          )
+        }
+
+        const data: ApiResponse =
+          await response.json()
+
+        setPackages(data.packages ?? [])
+      } catch (error) {
+        console.error(error)
+        setError(true)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadPackages()
+  }, [])
+
   return (
-    <section className="bg-white px-5 py-24 sm:px-6 md:py-32 lg:px-8 lg:py-32">
-      <div className="mx-auto max-w-7xl">
-        <div className="text-center">
-          <p className="text-xs tracking-[0.3em] text-[#a3844e]">
-            MERIVUE PACKAGE
+    <section
+      id="packages"
+      className="scroll-mt-20 bg-[#F8F6F2] px-5 py-16 sm:px-6 md:py-20"
+    >
+      <div className="mx-auto max-w-6xl">
+
+        {/* ======================
+            Heading
+        ====================== */}
+        <div className="mx-auto max-w-2xl text-center">
+          <p className="text-[10px] font-semibold tracking-[0.28em] text-[#B5965B] sm:text-xs">
+            PACKAGES
           </p>
 
-          <h2 className="mt-5 text-3xl font-medium tracking-tight text-[#17233c] sm:text-4xl md:text-5xl">
-            예식에 맞는 서비스를
-            <br />
-            선택하세요
+          <h2 className="mt-4 text-[28px] font-semibold tracking-[-0.03em] text-[#17233C] sm:text-3xl md:text-4xl">
+            상품 안내
           </h2>
 
-          <p className="mx-auto mt-6 max-w-2xl text-sm leading-7 text-[#6d7280] sm:text-base">
-            현재 MERIVUE 오픈 이벤트 기간으로
-            정상가 대비 특별 할인가를 적용하고 있습니다.
+          <p className="mt-4 break-keep text-[13px] leading-6 text-[#6F7682] sm:mt-5 sm:text-sm sm:leading-7 md:text-base">
+            예식 규모와 진행 방식에 맞는
+            <br className="sm:hidden" />
+            {" "}
+            MERIVUE 서비스를 선택해 주세요.
           </p>
         </div>
 
-        <div className="mx-auto mt-14 grid max-w-5xl gap-6 lg:grid-cols-2">
-          {packages.map((item) => (
-            <article
-              key={item.name}
-              className={`relative border p-8 sm:p-10 ${
-                item.featured
-                  ? "border-[#b5965b] bg-[#fcfaf6]"
-                  : "border-[#17233c]/10 bg-white"
-              }`}
-            >
-              {item.featured && (
-                <div className="absolute right-6 top-6 bg-[#17233c] px-4 py-2 text-[10px] tracking-[0.2em] text-white">
-                  RECOMMENDED
-                </div>
-              )}
+        {/* ======================
+            Loading
+        ====================== */}
+        {loading && (
+          <div className="py-16 text-center text-[13px] text-[#8B8F96] sm:py-20 sm:text-sm">
+            상품 정보를 불러오고 있습니다.
+          </div>
+        )}
 
-              <p className="text-xs tracking-[0.25em] text-[#a3844e]">
-                OPEN EVENT
+        {/* ======================
+            Error
+        ====================== */}
+        {!loading && error && (
+          <div className="mt-10 border border-[#E2DED7] bg-white px-5 py-12 text-center sm:mt-14 sm:px-6 sm:py-14">
+            <p className="text-[13px] text-[#777] sm:text-sm">
+              상품 정보를 불러오지 못했습니다.
+            </p>
+          </div>
+        )}
+
+        {/* ======================
+            Package Cards
+        ====================== */}
+        {!loading &&
+          !error &&
+          packages.length > 0 && (
+            <div className="mt-10 grid gap-5 sm:mt-14 sm:gap-6 md:grid-cols-2">
+              {packages.map((item) => {
+                const eventActive =
+                  isEventActive(
+                    item.startDate,
+                    item.endDate
+                  )
+
+                const showEvent =
+                  eventActive &&
+                  item.salePrice > 0 &&
+                  item.originalPrice >
+                    item.salePrice
+
+                return (
+                  <article
+                    key={item.id}
+                    className="relative overflow-hidden border border-[#DED9D1] bg-white px-5 py-7 sm:px-7 sm:py-9 md:px-10 md:py-11"
+                  >
+                    {/* Event badge */}
+                    {showEvent &&
+                      item.eventLabel && (
+                        <div className="absolute right-0 top-0 bg-[#17233C] px-3 py-2 text-[9px] font-semibold tracking-[0.14em] text-white sm:px-5 sm:py-2.5 sm:text-[10px] sm:tracking-[0.18em]">
+                          {item.eventLabel}
+                        </div>
+                      )}
+
+                    {/* Package title */}
+                    <div
+                      className={
+                        showEvent
+                          ? "pr-24 sm:pr-28"
+                          : ""
+                      }
+                    >
+                      <p className="text-[9px] font-medium tracking-[0.18em] text-[#B5965B] sm:text-xs">
+                        MERIVUE SERVICE
+                      </p>
+
+                      <h3 className="mt-2.5 text-[24px] font-semibold tracking-[-0.03em] text-[#17233C] sm:mt-3 sm:text-2xl md:text-3xl">
+                        {item.name}
+                      </h3>
+                    </div>
+
+                    {/* ======================
+                        Basic Information
+                    ====================== */}
+                    <div className="mt-6 border-y border-[#EEEAE4] py-5 sm:mt-8 sm:py-7">
+
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="text-[13px] text-[#777D86] sm:text-sm">
+                          진행 인원
+                        </span>
+
+                        <span className="text-right text-[13px] font-semibold text-[#17233C] sm:text-sm">
+                          {item.staff}
+                        </span>
+                      </div>
+
+                      <div className="mt-3.5 flex items-center justify-between gap-4 sm:mt-4">
+                        <span className="text-[13px] text-[#777D86] sm:text-sm">
+                          기본 이용시간
+                        </span>
+
+                        <span className="text-right text-[13px] font-semibold text-[#17233C] sm:text-sm">
+                          {item.basicHours}시간
+                        </span>
+                      </div>
+
+                      <div className="mt-3.5 flex items-center justify-between gap-4 sm:mt-4">
+                        <span className="text-[13px] text-[#777D86] sm:text-sm">
+                          보증 인원
+                        </span>
+
+                        <span className="text-right text-[13px] font-semibold text-[#17233C] sm:text-sm">
+                          {item.guaranteedGuests.toLocaleString(
+                            "ko-KR"
+                          )}
+                          명
+                        </span>
+                      </div>
+
+                      <div className="mt-3.5 flex items-center justify-between gap-4 sm:mt-4">
+                        <span className="shrink-0 text-[13px] text-[#777D86] sm:text-sm">
+                          추가 인원
+                        </span>
+
+                        <span className="text-right text-[13px] font-semibold text-[#17233C] sm:text-sm">
+                          {item.extraGuestUnit.toLocaleString(
+                            "ko-KR"
+                          )}
+                          명당 +
+                          {formatPrice(
+                            item.extraFee
+                          )}
+                          원
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* ======================
+                        Price
+                    ====================== */}
+                    <div className="mt-6 sm:mt-8">
+
+                      {showEvent && (
+                        <>
+                          {item.eventDescription && (
+                            <p className="break-keep text-[11px] font-medium leading-5 text-[#B5965B] sm:text-xs">
+                              {item.eventDescription}
+                            </p>
+                          )}
+
+                          <p className="mt-2.5 text-[12px] text-[#A4A4A0] line-through sm:mt-3 sm:text-sm">
+                            {formatPrice(
+                              item.originalPrice
+                            )}
+                            원
+                          </p>
+                        </>
+                      )}
+
+                      <div
+                        className={`flex items-end gap-1 ${
+                          showEvent
+                            ? "mt-1"
+                            : ""
+                        }`}
+                      >
+                        <strong className="text-[30px] font-semibold leading-none tracking-[-0.04em] text-[#17233C] sm:text-3xl md:text-4xl">
+                          {formatPrice(
+                            showEvent
+                              ? item.salePrice
+                              : item.originalPrice
+                          )}
+                        </strong>
+
+                        <span className="pb-0.5 text-[13px] text-[#6F7682] sm:pb-1 sm:text-sm">
+                          원
+                        </span>
+                      </div>
+
+                      {showEvent && (
+                        <p className="mt-3 text-[10px] tracking-[0.08em] text-[#9B8A69] sm:text-[11px]">
+                          OPENING EVENT PRICE
+                        </p>
+                      )}
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
+          )}
+
+        {/* ======================
+            Additional Information
+        ====================== */}
+        {!loading &&
+          !error &&
+          packages.length > 0 && (
+            <div className="mt-6 border border-[#E2DED7] bg-[#F2EFEA] px-5 py-6 sm:mt-8 sm:px-6 sm:py-7 md:px-8">
+
+              <p className="text-[13px] font-semibold text-[#17233C] sm:text-sm">
+                추가 안내
               </p>
 
-              <h3 className="mt-5 text-3xl font-medium text-[#17233c]">
-                {item.name}
-              </h3>
-
-              <p className="mt-2 text-sm text-[#6d7280]">
-                {item.subtitle}
-              </p>
-
-              <div className="mt-8 border-y border-[#17233c]/10 py-7">
-                <p className="text-sm text-[#8a8f98] line-through">
-                  {item.normalPrice}
+              <div className="mt-3.5 space-y-2.5 break-keep text-[12px] leading-6 text-[#737982] sm:mt-4 sm:text-sm">
+                <p>
+                  · 상품별 보증인원 및 추가 인원 비용은
+                  위 상품 안내를 기준으로 적용됩니다.
                 </p>
 
-                <div className="mt-2 flex items-end gap-2">
-                  <p className="text-4xl font-medium tracking-tight text-[#17233c]">
-                    {item.eventPrice}
-                  </p>
-                </div>
+                <p>
+                  · 권종별 계수 정산 선택 시
+                  5만원의 추가 비용이 발생합니다.
+                </p>
 
-                <p className="mt-3 text-xs text-[#a3844e]">
-                  오픈 이벤트 특별가
+                <p>
+                  · 정산 방식은 예식일 7일 전까지
+                  변경 가능합니다.
                 </p>
               </div>
-
-              <div className="mt-8 space-y-4 text-sm text-[#4f5663]">
-                <div className="flex items-center justify-between border-b border-[#17233c]/8 pb-4">
-                  <span>이용시간</span>
-                  <strong className="font-medium text-[#17233c]">
-                    {item.hours}
-                  </strong>
-                </div>
-
-                <div className="flex items-center justify-between border-b border-[#17233c]/8 pb-4">
-                  <span>보증인원</span>
-                  <strong className="font-medium text-[#17233c]">
-                    {item.guests}
-                  </strong>
-                </div>
-
-                <div className="flex items-center justify-between border-b border-[#17233c]/8 pb-4">
-                  <span>추가비용</span>
-                  <strong className="font-medium text-[#17233c]">
-                    {item.extra}
-                  </strong>
-                </div>
-              </div>
-
-              <Link
-                href="/reservation"
-                className={`mt-9 inline-flex h-12 w-full items-center justify-center text-sm font-medium transition-colors ${
-                  item.featured
-                    ? "bg-[#17233c] text-white hover:bg-[#263756]"
-                    : "border border-[#17233c] text-[#17233c] hover:bg-[#17233c] hover:text-white"
-                }`}
-              >
-                이 상품으로 예약하기
-              </Link>
-            </article>
-          ))}
-        </div>
-
-        <div className="mx-auto mt-10 max-w-5xl border border-[#c6aa73]/25 bg-[#f8f5ef] px-6 py-5">
-          <p className="text-sm leading-7 text-[#6d7280]">
-            ※ 예식 규모 및 현장 상황에 따라 추가 인원이 필요할 수 있으며,
-            상세 비용은 상담 과정에서 사전 안내드립니다.
-          </p>
-        </div>
+            </div>
+          )}
       </div>
     </section>
   )

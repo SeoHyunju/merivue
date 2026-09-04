@@ -4,32 +4,31 @@ export default function KakaoFloatingButton() {
       href="https://pf.kakao.com/_xixlLBX"
       target="_blank"
       rel="noopener noreferrer"
-      className="group fixed bottom-6 right-6 z-[60]"
       aria-label="카카오톡 상담"
+      className="group fixed bottom-3 right-3 z-[60] md:bottom-6 md:right-6"
     >
       <div
         className="
           flex items-center overflow-hidden rounded-full
           bg-[#FEE500]
-          shadow-[0_8px_25px_rgba(0,0,0,0.15)]
+          shadow-[0_3px_12px_rgba(0,0,0,0.10)]
           transition-all duration-300
-          hover:-translate-y-1
-          hover:shadow-[0_12px_35px_rgba(0,0,0,0.20)]
+          md:shadow-[0_6px_20px_rgba(0,0,0,0.14)]
+          md:hover:-translate-y-1
+          md:hover:shadow-[0_12px_35px_rgba(0,0,0,0.20)]
         "
       >
-        {/* TALK 아이콘 */}
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center">
-          <span className="text-[11px] font-bold tracking-tight text-[#191919]">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center md:h-14 md:w-14">
+          <span className="text-[9px] font-bold tracking-tight text-[#191919] md:text-[11px]">
             TALK
           </span>
         </div>
 
-        {/* PC 마우스 오버 시 펼쳐지는 문구 */}
         <div
           className="
             max-w-0 overflow-hidden whitespace-nowrap
             transition-all duration-300
-            group-hover:max-w-[150px]
+            md:group-hover:max-w-[150px]
           "
         >
           <span className="block pr-6 text-sm font-semibold text-[#191919]">

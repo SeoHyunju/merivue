@@ -5,23 +5,112 @@ const notion = new Client({
   auth: process.env.NOTION_TOKEN,
 })
 
+const STATUS_DATA_SOURCE_ID =
+  process.env.NOTION_RESERVATION_STATUS_DATA_SOURCE_ID
+
+const OPEN_DATA_SOURCE_ID =
+  process.env.NOTION_RESERVATION_OPEN_DATA_SOURCE_ID
+
+type NotionProperty = {
+  title?: Array<{
+    plain_text?: string
+  }>
+
+  rich_text?: Array<{
+    plain_text?: string
+  }>
+
+  select?: {
+    name?: string
+  } | null
+
+  date?: {
+    start?: string
+    end?: string | null
+  } | null
+
+  checkbox?: boolean
+}
+
+function getTitle(property?: NotionProperty) {
+  return (
+    property?.title
+      ?.map((item) => item.plain_text ?? "")
+      .join("") ?? ""
+  )
+}
+
+function getRichText(property?: NotionProperty) {
+  return (
+    property?.rich_text
+      ?.map((item) => item.plain_text ?? "")
+      .join("") ?? ""
+  )
+}
+
+function getSelect(property?: NotionProperty) {
+  return property?.select?.name ?? ""
+}
+
+function getDate(property?: NotionProperty) {
+  return property?.date?.start ?? ""
+}
+
 export async function GET() {
   try {
-    const dataSourceId = process.env.NOTION_DATA_SOURCE_ID
+    /* =========================
+       환경변수 확인
+    ========================= */
 
-    if (!dataSourceId) {
+    if (!process.env.NOTION_TOKEN) {
       return NextResponse.json(
         {
-          success: false,
-          message: "NOTION_DATA_SOURCE_ID가 설정되지 않았습니다.",
+          error: "NOTION_TOKEN이 설정되지 않았습니다.",
         },
-        { status: 500 }
+        {
+          status: 500,
+        }
       )
     }
 
-    const response = await notion.dataSources.query({
-      data_source_id: dataSourceId,
-      page_size: 100,
+    if (!STATUS_DATA_SOURCE_ID) {
+      return NextResponse.json(
+        {
+          error:
+            "NOTION_RESERVATION_STATUS_DATA_SOURCE_ID가 설정되지 않았습니다.",
+        },
+        {
+          status: 500,
+        }
+      )
+    }
+
+    if (!OPEN_DATA_SOURCE_ID) {
+      return NextResponse.json(
+        {
+          error:
+            "NOTION_RESERVATION_OPEN_DATA_SOURCE_ID가 설정되지 않았습니다.",
+        },
+        {
+          status: 500,
+        }
+      )
+    }
+
+    /* =========================
+       1. 예약현황 관리 DB
+    ========================= */
+
+    const statusResponse = await notion.dataSources.query({
+      data_source_id: STATUS_DATA_SOURCE_ID,
+
+      filter: {
+        property: "노출",
+        checkbox: {
+          equals: true,
+        },
+      },
+
       sorts: [
         {
           property: "예식일",
@@ -30,81 +119,124 @@ export async function GET() {
       ],
     })
 
-    const reservations = response.results.map((page) => {
-      if (!("properties" in page)) {
-        return null
-      }
+    const reservations = statusResponse.results
+      .filter((page) => "properties" in page)
+      .map((page) => {
+        const properties = page.properties as Record<
+          string,
+          NotionProperty
+        >
 
-      const properties = page.properties
+        return {
+          id: page.id,
 
-      const weddingDateProperty = properties["예식일"]
-      const regionProperty = properties["지역"]
-      const statusProperty = properties["예약상태"]
-      const venueProperty = properties["예식장"]
-      const timeProperty = properties["예식시간"]
+          title: getTitle(
+            properties["일정명"]
+          ),
 
-      const weddingDate =
-        weddingDateProperty?.type === "date"
-          ? weddingDateProperty.date?.start ?? ""
-          : ""
+          weddingDate: getDate(
+            properties["예식일"]
+          ),
 
-      const region =
-        regionProperty?.type === "select"
-          ? regionProperty.select?.name ?? ""
-          : ""
+          region: getSelect(
+            properties["권역"]
+          ),
 
-      const status =
-        statusProperty?.type === "select"
-          ? statusProperty.select?.name ?? ""
-          : ""
+          status: getSelect(
+            properties["상태"]
+          ),
 
-      const venue =
-        venueProperty?.type === "rich_text"
-          ? venueProperty.rich_text
-              .map((item) => item.plain_text)
-              .join("")
-          : ""
+          message: getRichText(
+            properties["안내문구"]
+          ),
+        }
+      })
+      .filter(
+        (item) =>
+          item.weddingDate &&
+          item.region &&
+          item.status
+      )
 
-      const weddingTime =
-        timeProperty?.type === "rich_text"
-          ? timeProperty.rich_text
-              .map((item) => item.plain_text)
-              .join("")
-          : ""
+    /* =========================
+       2. 예약오픈 관리 DB
+    ========================= */
 
-      return {
-        id: page.id,
-        weddingDate,
-        weddingTime,
-        region,
-        venue,
-        status,
-      }
+    const openResponse = await notion.dataSources.query({
+      data_source_id: OPEN_DATA_SOURCE_ID,
+
+      filter: {
+        property: "오픈",
+        checkbox: {
+          equals: true,
+        },
+      },
+
+      sorts: [
+        {
+          property: "시작일",
+          direction: "ascending",
+        },
+      ],
     })
 
-    const validReservations = reservations.filter(
-      (reservation) => reservation !== null
-    )
+    const openPeriods = openResponse.results
+      .filter((page) => "properties" in page)
+      .map((page) => {
+        const properties = page.properties as Record<
+          string,
+          NotionProperty
+        >
+
+        return {
+          id: page.id,
+
+          title: getTitle(
+            properties["오픈명"]
+          ),
+
+          startDate: getDate(
+            properties["시작일"]
+          ),
+
+          endDate: getDate(
+            properties["종료일"]
+          ),
+        }
+      })
+      .filter(
+        (item) =>
+          item.startDate &&
+          item.endDate
+      )
+
+    /* =========================
+       결과 반환
+    ========================= */
 
     return NextResponse.json({
-      success: true,
-      count: validReservations.length,
-      reservations: validReservations,
+      reservations,
+      openPeriods,
     })
   } catch (error) {
-    console.error("Reservation Status API Error:", error)
+    console.error(
+      "Reservation status API error:",
+      error
+    )
 
     return NextResponse.json(
       {
-        success: false,
-        message: "예약 현황을 불러오지 못했습니다.",
         error:
-          process.env.NODE_ENV === "development" &&
+          "예약현황을 불러오지 못했습니다.",
+
+        detail:
           error instanceof Error
             ? error.message
-            : undefined,
+            : String(error),
       },
-      { status: 500 }
+      {
+        status: 500,
+      }
     )
   }
 }

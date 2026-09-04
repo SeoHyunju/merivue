@@ -329,12 +329,6 @@ export default function AboutPage() {
             예약 가능 여부를 확인하여 안내드리겠습니다.
           </p>
 
-          <Link
-            href="/reservation"
-            className="mt-10 inline-flex h-14 items-center justify-center bg-[#17233c] px-10 text-sm font-medium text-white transition-colors hover:bg-[#263756]"
-          >
-            예약 및 문의
-          </Link>
         </div>
       </section>
 

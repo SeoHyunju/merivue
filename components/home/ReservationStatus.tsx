@@ -1,105 +1,280 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
-import Link from "next/link"
+import { useEffect, useMemo, useRef, useState } from "react"
 
 type Reservation = {
   id: string
+  title: string
   weddingDate: string
-  weddingTime: string
   region: string
-  venue: string
   status: string
+  message: string
+}
+
+type OpenPeriod = {
+  id: string
+  title: string
+  startDate: string
+  endDate: string
 }
 
 type ApiResponse = {
-  success: boolean
-  count: number
   reservations: Reservation[]
+  openPeriods: OpenPeriod[]
 }
 
-type WeekendDate = {
-  date: Date
+const REGIONS = [
+  "수도권",
+  "충청·전라권",
+  "경상·부산권",
+] as const
+
+const REGION_SHORT: Record<string, string> = {
+  수도권: "수도",
+  "충청·전라권": "충·전",
+  "경상·부산권": "경·부",
+}
+
+type CalendarDay = {
+  year: number
+  month: number
+  day: number
   dateString: string
+  currentMonth: boolean
+  weekday: number
 }
 
-const REGIONS = ["서울", "경기", "부산", "기타"]
-
-function toDateString(date: Date) {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, "0")
-  const day = String(date.getDate()).padStart(2, "0")
-
-  return `${year}-${month}-${day}`
+function pad(value: number) {
+  return String(value).padStart(2, "0")
 }
 
-function formatWeekendDate(date: Date) {
-  return new Intl.DateTimeFormat("ko-KR", {
-    month: "long",
-    day: "numeric",
+function makeDateString(
+  year: number,
+  month: number,
+  day: number
+) {
+  return `${year}-${pad(month + 1)}-${pad(day)}`
+}
+
+function createCalendarDays(
+  year: number,
+  month: number
+): CalendarDay[] {
+  const firstDay = new Date(year, month, 1).getDay()
+  const lastDate = new Date(year, month + 1, 0).getDate()
+  const previousLastDate = new Date(year, month, 0).getDate()
+
+  const days: CalendarDay[] = []
+
+  // 이전 달
+  for (let i = firstDay - 1; i >= 0; i--) {
+    const date = new Date(
+      year,
+      month - 1,
+      previousLastDate - i
+    )
+
+    days.push({
+      year: date.getFullYear(),
+      month: date.getMonth(),
+      day: date.getDate(),
+      dateString: makeDateString(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate()
+      ),
+      currentMonth: false,
+      weekday: date.getDay(),
+    })
+  }
+
+  // 현재 달
+  for (let day = 1; day <= lastDate; day++) {
+    const date = new Date(year, month, day)
+
+    days.push({
+      year,
+      month,
+      day,
+      dateString: makeDateString(year, month, day),
+      currentMonth: true,
+      weekday: date.getDay(),
+    })
+  }
+
+  // 다음 달
+  let nextDay = 1
+
+  while (days.length < 42) {
+    const date = new Date(
+      year,
+      month + 1,
+      nextDay
+    )
+
+    days.push({
+      year: date.getFullYear(),
+      month: date.getMonth(),
+      day: date.getDate(),
+      dateString: makeDateString(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate()
+      ),
+      currentMonth: false,
+      weekday: date.getDay(),
+    })
+
+    nextDay++
+  }
+
+  return days
+}
+
+function isWeekend(weekday: number) {
+  return weekday === 0 || weekday === 6
+}
+
+function isDateInOpenPeriod(
+  dateString: string,
+  openPeriods: OpenPeriod[]
+) {
+  return openPeriods.some(
+    (period) =>
+      dateString >= period.startDate &&
+      dateString <= period.endDate
+  )
+}
+
+function getTodayString() {
+  const today = new Date()
+
+  return makeDateString(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate()
+  )
+}
+
+function getStatusStyle(status: string) {
+  switch (status) {
+    case "예약 가능":
+      return {
+        dot: "bg-[#9BC9A2]",
+        text: "text-[#5D8C65]",
+        badge:
+          "border-[#CFE7D3] bg-[#EEF8F0] text-[#5D8C65]",
+        card:
+          "border-[#D9EBDD] bg-[#F8FCF8]",
+      }
+
+    case "마감 임박":
+      return {
+        dot: "bg-[#F1C66D]",
+        text: "text-[#A77A24]",
+        badge:
+          "border-[#F2DEAD] bg-[#FFF8E8] text-[#A77A24]",
+        card:
+          "border-[#F2E3BD] bg-[#FFFCF5]",
+      }
+
+    case "예약 마감":
+      return {
+        dot: "bg-[#EFA0A7]",
+        text: "text-[#B9626B]",
+        badge:
+          "border-[#F1C9CD] bg-[#FFF0F2] text-[#B9626B]",
+        card:
+          "border-[#F1D6D9] bg-[#FFF9FA]",
+      }
+
+    case "예약 오픈 전":
+      return {
+        dot: "bg-[#C8C5BF]",
+        text: "text-[#96918A]",
+        badge:
+          "border-[#E1DED8] bg-[#F5F3F0] text-[#8D8982]",
+        card:
+          "border-[#E5E1DB] bg-[#FAF9F7]",
+      }
+
+    default:
+      return {
+        dot: "bg-[#C8C5BF]",
+        text: "text-[#96918A]",
+        badge:
+          "border-[#E1DED8] bg-[#F5F3F0] text-[#8D8982]",
+        card:
+          "border-[#E5E1DB] bg-[#FAF9F7]",
+      }
+  }
+}
+
+function formatSelectedDate(dateString: string) {
+  const [year, month, day] = dateString
+    .split("-")
+    .map(Number)
+
+  const date = new Date(year, month - 1, day)
+
+  const weekday = new Intl.DateTimeFormat("ko-KR", {
     weekday: "short",
   }).format(date)
-}
 
-function getUpcomingWeekends(weeks = 4): WeekendDate[] {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-
-  const result: WeekendDate[] = []
-  const cursor = new Date(today)
-
-  while (result.length < weeks * 2) {
-    const day = cursor.getDay()
-
-    if (day === 0 || day === 6) {
-      result.push({
-        date: new Date(cursor),
-        dateString: toDateString(cursor),
-      })
-    }
-
-    cursor.setDate(cursor.getDate() + 1)
-  }
-
-  return result
-}
-
-function getRegionStatus(count: number) {
-  if (count >= 2) {
-    return {
-      label: "마감 임박",
-      badgeClass: "bg-[#efe4cf] text-[#876c3e]",
-      dotClass: "bg-[#b5965b]",
-    }
-  }
-
-  return {
-    label: "예약 가능",
-    badgeClass: "bg-[#edf3ec] text-[#567057]",
-    dotClass: "bg-[#748f73]",
-  }
+  return `${year}년 ${month}월 ${day}일 (${weekday})`
 }
 
 export default function ReservationStatus() {
-  const [reservations, setReservations] = useState<Reservation[]>([])
+  const today = new Date()
+  const todayString = getTodayString()
+
+  const [reservations, setReservations] =
+    useState<Reservation[]>([])
+
+  const [openPeriods, setOpenPeriods] =
+    useState<OpenPeriod[]>([])
+
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
-  const [showMore, setShowMore] = useState(false)
+
+  const [currentYear, setCurrentYear] =
+    useState(today.getFullYear())
+
+  const [currentMonth, setCurrentMonth] =
+    useState(today.getMonth())
+
+  const [selectedDate, setSelectedDate] =
+    useState<string | null>(null)
+
+  /* 상세 현황 자동 스크롤용 */
+  const detailRef = useRef<HTMLDivElement | null>(null)
+
+  /* ==============================
+     API
+  ============================== */
 
   useEffect(() => {
     async function loadReservations() {
       try {
-        const response = await fetch("/api/reservation-status", {
-          cache: "no-store",
-        })
+        setLoading(true)
+        setError(false)
 
-        const data: ApiResponse = await response.json()
+        const response = await fetch(
+          "/api/reservation-status",
+          {
+            cache: "no-store",
+          }
+        )
 
-        if (!response.ok || !data.success) {
-          throw new Error("예약 현황 조회 실패")
+        if (!response.ok) {
+          throw new Error("예약현황 조회 실패")
         }
 
-        setReservations(data.reservations)
+        const data: ApiResponse =
+          await response.json()
+
+        setReservations(data.reservations ?? [])
+        setOpenPeriods(data.openPeriods ?? [])
       } catch (error) {
         console.error(error)
         setError(true)
@@ -111,98 +286,170 @@ export default function ReservationStatus() {
     loadReservations()
   }, [])
 
-  const upcomingWeekends = useMemo(() => {
-    return getUpcomingWeekends(4)
-  }, [])
+  /* ==============================
+     날짜 선택 후 상세 현황 자동 스크롤
+  ============================== */
 
-  const visibleWeekends = useMemo(() => {
-    return showMore
-      ? upcomingWeekends
-      : upcomingWeekends.slice(0, 2)
-  }, [showMore, upcomingWeekends])
+  useEffect(() => {
+    if (!selectedDate) return
 
-  const confirmedReservations = useMemo(() => {
-    return reservations.filter(
-      (reservation) => reservation.status === "예약확정"
-    )
+    const timer = window.setTimeout(() => {
+      detailRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      })
+    }, 150)
+
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [selectedDate])
+
+  /* ==============================
+     Notion 예약현황 날짜별 정리
+  ============================== */
+
+  const reservationsByDate = useMemo(() => {
+    const map = new Map<string, Reservation[]>()
+
+    reservations.forEach((reservation) => {
+      if (!map.has(reservation.weddingDate)) {
+        map.set(reservation.weddingDate, [])
+      }
+
+      map
+        .get(reservation.weddingDate)
+        ?.push(reservation)
+    })
+
+    return map
   }, [reservations])
 
-  const reservationCountByDateAndRegion = useMemo(() => {
-    return confirmedReservations.reduce<
-      Record<string, Record<string, number>>
-    >((acc, reservation) => {
-      if (!reservation.weddingDate) {
-        return acc
+  const calendarDays = useMemo(() => {
+    return createCalendarDays(
+      currentYear,
+      currentMonth
+    )
+  }, [currentYear, currentMonth])
+
+  /* ==============================
+     상태 계산
+  ============================== */
+
+  function getDefaultMessage(status: string) {
+    switch (status) {
+      case "예약 가능":
+        return "현재 예약 가능합니다."
+
+      case "마감 임박":
+        return "예약 마감이 임박했습니다."
+
+      case "예약 마감":
+        return "예약이 마감되었습니다."
+
+      case "예약 오픈 전":
+        return "아직 예약이 오픈되지 않았습니다."
+
+      default:
+        return ""
+    }
+  }
+
+  function getRegionStatus(
+    dateString: string,
+    weekday: number,
+    region: string
+  ) {
+    // 평일
+    if (!isWeekend(weekday)) {
+      return null
+    }
+
+    // 지난 날짜
+    if (dateString < todayString) {
+      return null
+    }
+
+    // 예약 오픈 여부
+    const opened = isDateInOpenPeriod(
+      dateString,
+      openPeriods
+    )
+
+    if (!opened) {
+      return {
+        status: "예약 오픈 전",
+        message:
+          "아직 예약이 오픈되지 않았습니다.",
       }
+    }
 
-      const region = REGIONS.includes(reservation.region)
-        ? reservation.region
-        : "기타"
+    // Notion 예약현황 관리 DB의 예외값
+    const dayReservations =
+      reservationsByDate.get(dateString) ?? []
 
-      if (!acc[reservation.weddingDate]) {
-        acc[reservation.weddingDate] = {}
+    const override = dayReservations.find(
+      (item) => item.region === region
+    )
+
+    if (override) {
+      return {
+        status: override.status,
+        message:
+          override.message ||
+          getDefaultMessage(override.status),
       }
+    }
 
-      acc[reservation.weddingDate][region] =
-        (acc[reservation.weddingDate][region] || 0) + 1
+    // 오픈 기간 토·일 기본값
+    return {
+      status: "예약 가능",
+      message: "현재 예약 가능합니다.",
+    }
+  }
 
-      return acc
-    }, {})
-  }, [confirmedReservations])
+  /* ==============================
+     월 이동
+  ============================== */
+
+  function previousMonth() {
+    if (currentMonth === 0) {
+      setCurrentYear((prev) => prev - 1)
+      setCurrentMonth(11)
+    } else {
+      setCurrentMonth((prev) => prev - 1)
+    }
+
+    setSelectedDate(null)
+  }
+
+  function nextMonth() {
+    if (currentMonth === 11) {
+      setCurrentYear((prev) => prev + 1)
+      setCurrentMonth(0)
+    } else {
+      setCurrentMonth((prev) => prev + 1)
+    }
+
+    setSelectedDate(null)
+  }
 
   return (
-    <section className="bg-white px-5 py-24 sm:px-6 md:py-28 lg:px-8 lg:py-32">
+    <section
+      id="reservation-status"
+      className="bg-[#F8F6F2] px-4 py-14 sm:px-6 md:py-20"
+    >
       <div className="mx-auto max-w-6xl">
 
-        <div className="flex flex-col gap-7 border-b border-[#17233c]/10 pb-10 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="text-xs tracking-[0.3em] text-[#a3844e]">
-              RESERVATION STATUS
-            </p>
-
-            <h2 className="mt-5 text-3xl font-medium leading-[1.3] tracking-[-0.03em] text-[#17233c] sm:text-4xl md:text-[44px]">
-              가까운 주말 예약 현황을
-              <br />
-              확인해 보세요
-            </h2>
-
-            <p className="mt-5 text-sm leading-7 text-[#6d7280]">
-              오늘을 기준으로 가장 가까운 주말의
-              지역별 예약 가능 여부를 안내합니다.
-            </p>
-          </div>
-
-          <Link
-            href="/reservation"
-            className="inline-flex h-11 shrink-0 items-center justify-center border border-[#17233c] px-7 text-sm font-medium text-[#17233c] transition-colors hover:bg-[#17233c] hover:text-white"
-          >
-            예약 및 문의
-          </Link>
-        </div>
-
-        <div className="mt-8 flex flex-wrap gap-x-7 gap-y-3 text-xs text-[#6d7280]">
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-[#748f73]" />
-            예약 가능
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-[#b5965b]" />
-            마감 임박
-          </div>
-        </div>
-
         {loading && (
-          <div className="py-16 text-center">
-            <p className="text-sm text-[#6d7280]">
-              예약 현황을 확인하고 있습니다.
-            </p>
+          <div className="py-20 text-center text-sm text-[#8B8F96]">
+            예약 현황을 불러오고 있습니다.
           </div>
         )}
 
         {!loading && error && (
-          <div className="mt-10 border border-[#aa7777]/20 bg-[#faf1f1] px-6 py-8 text-center">
-            <p className="text-sm text-[#865454]">
+          <div className="rounded-2xl border border-[#E4DFD6] bg-white px-6 py-16 text-center">
+            <p className="text-sm text-[#777]">
               예약 현황을 불러오지 못했습니다.
             </p>
           </div>
@@ -210,101 +457,399 @@ export default function ReservationStatus() {
 
         {!loading && !error && (
           <>
-            <div className="mt-10 space-y-5">
-              {visibleWeekends.map((weekend) => {
-                const dateCounts =
-                  reservationCountByDateAndRegion[weekend.dateString] || {}
+            {/* ======================
+                달력 안내
+            ====================== */}
 
-                return (
-                  <article
-                    key={weekend.dateString}
-                    className="border border-[#17233c]/10 bg-[#faf8f3]"
+            <div className="mb-5 text-center md:mb-7">
+              <p className="text-sm font-semibold text-[#17233C] md:text-base">
+                예식일을 선택해 주세요
+              </p>
+
+              <p className="mt-1.5 text-xs leading-6 text-[#7F848C] md:text-sm">
+                날짜를 선택하시면 권역별 예약 현황을
+                자세히 확인하실 수 있습니다.
+              </p>
+
+              <div className="mt-3 flex items-center justify-center gap-1.5 text-xs font-medium text-[#B5965B]">
+                <span>달력에서 토·일 날짜 선택</span>
+                <span aria-hidden="true">↓</span>
+              </div>
+            </div>
+
+            {/* ======================
+                달력
+            ====================== */}
+
+            <div className="overflow-hidden rounded-2xl border border-[#E2DED7] bg-white">
+
+              {/* 월 이동 */}
+              <div className="flex h-20 items-center justify-between border-b border-[#ECE8E1] px-4 sm:px-7">
+
+                <button
+                  type="button"
+                  onClick={previousMonth}
+                  className="flex h-11 w-11 items-center justify-center rounded-lg border border-[#E2DED7] text-xl text-[#17233C] transition hover:bg-[#F8F6F2]"
+                  aria-label="이전 달"
+                >
+                  ‹
+                </button>
+
+                <h2 className="text-lg font-semibold text-[#17233C] md:text-2xl">
+                  {currentYear}년 {currentMonth + 1}월
+                </h2>
+
+                <button
+                  type="button"
+                  onClick={nextMonth}
+                  className="flex h-11 w-11 items-center justify-center rounded-lg border border-[#E2DED7] text-xl text-[#17233C] transition hover:bg-[#F8F6F2]"
+                  aria-label="다음 달"
+                >
+                  ›
+                </button>
+
+              </div>
+
+              {/* 요일 */}
+              <div className="grid grid-cols-7 border-b border-[#ECE8E1]">
+                {[
+                  "일",
+                  "월",
+                  "화",
+                  "수",
+                  "목",
+                  "금",
+                  "토",
+                ].map((day, index) => (
+                  <div
+                    key={day}
+                    className={`py-4 text-center text-sm font-medium ${
+                      index === 0
+                        ? "text-[#D77C7C]"
+                        : index === 6
+                        ? "text-[#6E91B7]"
+                        : "text-[#858991]"
+                    }`}
                   >
-                    <div className="flex items-center justify-between border-b border-[#17233c]/10 px-6 py-5 sm:px-7">
-                      <div>
-                        <p className="text-[10px] tracking-[0.22em] text-[#a3844e]">
-                          WEEKEND
-                        </p>
+                    {day}
+                  </div>
+                ))}
+              </div>
 
-                        <h3 className="mt-2 text-xl font-medium text-[#17233c]">
-                          {formatWeekendDate(weekend.date)}
-                        </h3>
+              {/* 날짜 */}
+              <div className="grid grid-cols-7">
+
+                {calendarDays.map((day) => {
+                  const weekend =
+                    isWeekend(day.weekday)
+
+                  const past =
+                    day.dateString < todayString
+
+                  const opened =
+                    isDateInOpenPeriod(
+                      day.dateString,
+                      openPeriods
+                    )
+
+                  const selected =
+                    selectedDate === day.dateString
+
+                  const selectable =
+                    day.currentMonth &&
+                    weekend &&
+                    !past
+
+                  return (
+                    <button
+                      key={day.dateString}
+                      type="button"
+                      disabled={!selectable}
+                      onClick={() =>
+                        setSelectedDate(day.dateString)
+                      }
+                      className={`
+                        relative
+                        min-h-[95px]
+                        border-b
+                        border-r
+                        border-[#F0ECE6]
+                        p-2
+                        text-left
+                        transition
+                        sm:min-h-[160px]
+                        sm:p-4
+
+                        ${
+                          !day.currentMonth
+                            ? "bg-[#FAF9F7]"
+                            : past
+                            ? "bg-[#FAF9F7]"
+                            : "bg-white"
+                        }
+
+                        ${
+                          selectable
+                            ? "cursor-pointer hover:bg-[#FCFBF8]"
+                            : "cursor-default"
+                        }
+
+                        ${
+                          selected
+                            ? "ring-2 ring-inset ring-[#C9A765]"
+                            : ""
+                        }
+                      `}
+                    >
+
+                      {/* 날짜 */}
+                      <div
+                        className={`text-center text-sm font-medium sm:text-lg ${
+                          !day.currentMonth
+                            ? "text-[#D4D1CC]"
+                            : past
+                            ? "text-[#CCC8C1]"
+                            : day.weekday === 0
+                            ? "text-[#D77C7C]"
+                            : day.weekday === 6
+                            ? "text-[#6286AD]"
+                            : "text-[#17233C]"
+                        }`}
+                      >
+                        {day.day}
                       </div>
 
-                      <span className="text-xs text-[#8a8f98]">
-                        지역별 예약 현황
-                      </span>
-                    </div>
+                      {/* 지난 날짜 */}
+                      {day.currentMonth &&
+                        weekend &&
+                        past && (
+                          <div className="mt-5 text-center">
+                            <span className="text-[9px] font-medium text-[#C2BEB7] sm:text-xs">
+                              지난 일정
+                            </span>
+                          </div>
+                        )}
 
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-4">
+                      {/* 오픈 전 */}
+                      {day.currentMonth &&
+                        weekend &&
+                        !past &&
+                        !opened && (
+                          <div className="mt-5 flex justify-center sm:mt-8">
+                            <span className="rounded-full bg-[#F3F1EE] px-2 py-1 text-[8px] font-medium text-[#99948D] sm:px-3 sm:py-1.5 sm:text-xs">
+                              예약 오픈 전
+                            </span>
+                          </div>
+                        )}
+
+                      {/* 예약 오픈된 토/일 */}
+                      {day.currentMonth &&
+                        weekend &&
+                        !past &&
+                        opened && (
+                          <div className="mt-3 space-y-1.5 sm:mt-4 sm:space-y-2">
+
+                            {REGIONS.map((region) => {
+                              const result =
+                                getRegionStatus(
+                                  day.dateString,
+                                  day.weekday,
+                                  region
+                                )
+
+                              if (!result) return null
+
+                              const style =
+                                getStatusStyle(
+                                  result.status
+                                )
+
+                              return (
+                                <div
+                                  key={region}
+                                  className="flex items-center gap-1 sm:gap-2"
+                                >
+                                  <span
+                                    className={`h-2 w-2 shrink-0 rounded-full sm:h-2.5 sm:w-2.5 ${style.dot}`}
+                                  />
+
+                                  <span
+                                    className={`truncate text-[9px] font-medium sm:text-sm ${style.text}`}
+                                  >
+                                    <span className="sm:hidden">
+                                      {REGION_SHORT[region]}
+                                    </span>
+
+                                    <span className="hidden sm:inline">
+                                      {region}
+                                    </span>
+                                  </span>
+                                </div>
+                              )
+                            })}
+
+                          </div>
+                        )}
+
+                    </button>
+                  )
+                })}
+
+              </div>
+            </div>
+
+            {/* ======================
+                범례
+            ====================== */}
+
+            <div className="mt-6 flex flex-wrap justify-center gap-x-7 gap-y-3">
+
+              <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-[#9BC9A2]" />
+                <span className="text-sm text-[#5D8C65]">
+                  예약 가능
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-[#F1C66D]" />
+                <span className="text-sm text-[#A77A24]">
+                  마감 임박
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-[#EFA0A7]" />
+                <span className="text-sm text-[#B9626B]">
+                  예약 마감
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-[#C8C5BF]" />
+                <span className="text-sm text-[#96918A]">
+                  예약 오픈 전
+                </span>
+              </div>
+
+            </div>
+
+            {/* ======================
+                선택 날짜 상세
+            ====================== */}
+
+            {selectedDate && (() => {
+              const [year, month, day] =
+                selectedDate
+                  .split("-")
+                  .map(Number)
+
+              const weekday = new Date(
+                year,
+                month - 1,
+                day
+              ).getDay()
+
+              const opened =
+                isDateInOpenPeriod(
+                  selectedDate,
+                  openPeriods
+                )
+
+              return (
+                <div
+                  ref={detailRef}
+                  className="mt-10 scroll-mt-24 overflow-hidden rounded-2xl border border-[#E2DED7] bg-white"
+                >
+
+                  <div className="border-b border-[#ECE8E1] px-6 py-7 text-center">
+
+                    <p className="text-xs font-medium tracking-[0.16em] text-[#B5965B]">
+                      RESERVATION AVAILABILITY
+                    </p>
+
+                    <h3 className="mt-2 text-xl font-semibold text-[#17233C] md:text-2xl">
+                      {formatSelectedDate(
+                        selectedDate
+                      )}
+                    </h3>
+
+                    <p className="mt-2 text-xs text-[#8B8F96] md:text-sm">
+                      선택하신 예식일의 권역별 예약 현황입니다.
+                    </p>
+
+                  </div>
+
+                  {!opened ? (
+                    <div className="px-6 py-14 text-center">
+
+                      <span className="inline-flex rounded-full border border-[#E1DED8] bg-[#F5F3F0] px-5 py-2.5 text-sm font-semibold text-[#8D8982]">
+                        예약 오픈 전
+                      </span>
+
+                      <p className="mt-5 text-sm leading-7 text-[#7F848C]">
+                        아직 예약이 오픈되지 않은
+                        일정입니다.
+                        <br />
+                        예약 오픈 일정은 추후
+                        안내드리겠습니다.
+                      </p>
+
+                    </div>
+                  ) : (
+                    <div className="grid gap-4 p-4 md:grid-cols-3 md:p-6">
+
                       {REGIONS.map((region) => {
-                        const count = dateCounts[region] || 0
-                        const status = getRegionStatus(count)
+                        const result =
+                          getRegionStatus(
+                            selectedDate,
+                            weekday,
+                            region
+                          )
+
+                        if (!result) return null
+
+                        const style =
+                          getStatusStyle(
+                            result.status
+                          )
 
                         return (
                           <div
                             key={region}
-                            className="border-b border-[#17233c]/10 p-6 last:border-b-0 sm:border-r sm:last:border-r-0 lg:border-b-0"
+                            className={`rounded-xl border px-5 py-8 text-center ${style.card}`}
                           >
-                            <div className="flex items-center justify-between gap-3">
-                              <p className="font-medium text-[#17233c]">
-                                {region}
-                              </p>
 
+                            <p className="text-base font-semibold text-[#17233C] md:text-lg">
+                              {region}
+                            </p>
+
+                            <div className="mt-5">
                               <span
-                                className={`px-3 py-1.5 text-[11px] font-medium ${status.badgeClass}`}
+                                className={`inline-flex rounded-full border px-5 py-2.5 text-sm font-semibold ${style.badge}`}
                               >
-                                {status.label}
+                                {result.status}
                               </span>
                             </div>
 
-                            <div className="mt-5 flex items-center gap-2">
-                              <span
-                                className={`h-2 w-2 rounded-full ${status.dotClass}`}
-                              />
+                            <p className="mt-5 min-h-[48px] text-sm leading-6 text-[#7F848C]">
+                              {result.message}
+                            </p>
 
-                              <p className="text-xs text-[#6d7280]">
-                                {status.label === "예약 가능"
-                                  ? "예약 신청이 가능합니다."
-                                  : "예약이 빠르게 진행되고 있습니다."}
-                              </p>
-                            </div>
                           </div>
                         )
                       })}
-                    </div>
 
-                    <div className="flex justify-end border-t border-[#17233c]/10 px-6 py-4 sm:px-7">
-                      <Link
-                        href="/reservation"
-                        className="text-xs font-medium text-[#17233c] transition-opacity hover:opacity-60"
-                      >
-                        이 날짜로 예약 문의하기 →
-                      </Link>
                     </div>
-                  </article>
-                )
-              })}
-            </div>
+                  )}
 
-            <div className="mt-8 flex justify-center">
-              <button
-                type="button"
-                onClick={() => setShowMore((prev) => !prev)}
-                className="inline-flex h-11 items-center justify-center border border-[#17233c]/20 bg-white px-8 text-sm font-medium text-[#17233c] transition-colors hover:border-[#17233c] hover:bg-[#17233c] hover:text-white"
-              >
-                {showMore ? "접기 ↑" : "다른 주말 더보기 ↓"}
-              </button>
-            </div>
+                </div>
+              )
+            })()}
+
           </>
         )}
 
-        <div className="mt-8 border-t border-[#17233c]/10 pt-6">
-          <p className="text-xs leading-6 text-[#8a8f98]">
-            ※ 지역별 예약확정 현황을 기준으로 표시됩니다.
-            동일 지역에 예약확정이 2건 이상인 경우 마감 임박으로 안내됩니다.
-          </p>
-        </div>
       </div>
     </section>
   )

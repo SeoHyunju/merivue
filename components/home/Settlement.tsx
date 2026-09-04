@@ -27,72 +27,98 @@ const settlementOptions = [
 
 export default function Settlement() {
   return (
-    <section className="bg-[#f8f5ef] px-5 py-24 sm:px-6 md:py-32 lg:px-8 lg:py-32">
+    <section className="bg-[#f8f5ef] px-5 py-16 sm:px-6 md:py-20 lg:px-8">
       <div className="mx-auto max-w-7xl">
-        <div className="grid gap-8 border-b border-[#17233c]/10 pb-12 lg:grid-cols-2 lg:items-end">
+
+        {/* ======================
+            Heading
+        ====================== */}
+        <div className="grid gap-5 border-b border-[#17233c]/10 pb-9 sm:gap-8 sm:pb-12 lg:grid-cols-2 lg:items-end">
           <div>
-            <p className="text-xs tracking-[0.3em] text-[#a3844e]">
+            <p className="text-[10px] font-medium tracking-[0.28em] text-[#a3844e] sm:text-xs sm:tracking-[0.3em]">
               SETTLEMENT GUIDE
             </p>
 
-            <h2 className="mt-5 text-3xl font-medium tracking-tight text-[#17233c] sm:text-4xl md:text-5xl">
+            <h2 className="mt-4 text-[28px] font-medium leading-[1.3] tracking-[-0.025em] text-[#17233c] sm:mt-5 sm:text-4xl md:text-5xl">
               원하는 정산 방식을
               <br />
               선택하세요
             </h2>
           </div>
 
-          <p className="max-w-xl text-sm leading-7 text-[#6d7280] sm:text-base">
+          <p className="max-w-xl break-keep text-[13px] leading-6 text-[#6d7280] sm:text-base sm:leading-7">
             고객님의 예식 규모와 선호에 따라
+            <br className="sm:hidden" />
+            {" "}
             세 가지 정산 방식 중 하나를 선택할 수 있습니다.
           </p>
         </div>
 
-        <div className="mt-12 grid gap-5 lg:grid-cols-3">
+        {/* ======================
+            Settlement Cards
+        ====================== */}
+        <div className="mt-9 grid gap-4 sm:mt-12 sm:gap-5 lg:grid-cols-3">
           {settlementOptions.map((item) => (
             <article
               key={item.number}
-              className="border border-[#17233c]/10 bg-white p-7 sm:p-8"
+              className="border border-[#17233c]/10 bg-white p-5 sm:p-8"
             >
-              <div className="flex items-center justify-between">
-                <span className="text-xs tracking-[0.25em] text-[#a3844e]">
+              {/* Number / Extra fee */}
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-[10px] font-medium tracking-[0.22em] text-[#a3844e] sm:text-xs sm:tracking-[0.25em]">
                   {item.number}
                 </span>
 
                 {item.extra && (
-                  <span className="bg-[#17233c] px-3 py-1.5 text-xs font-medium text-white">
+                  <span className="shrink-0 bg-[#17233c] px-3 py-1.5 text-[10px] font-semibold text-white sm:text-xs">
                     {item.extra}
                   </span>
                 )}
               </div>
 
-              <h3 className="mt-10 text-2xl font-medium text-[#17233c]">
+              {/* Title */}
+              <h3 className="mt-6 text-xl font-medium tracking-tight text-[#17233c] sm:mt-10 sm:text-2xl">
                 {item.title}
               </h3>
 
-              <p className="mt-3 text-sm font-medium text-[#a3844e]">
+              {/* Subtitle */}
+              <p className="mt-2.5 break-keep text-[12px] font-medium leading-5 text-[#a3844e] sm:mt-3 sm:text-sm">
                 {item.subtitle}
               </p>
 
-              <div className="mt-6 h-px w-10 bg-[#b5965b]" />
+              {/* Gold line */}
+              <div className="mt-4 h-px w-8 bg-[#b5965b] sm:mt-6 sm:w-10" />
 
-              <p className="mt-6 text-sm leading-7 text-[#6d7280]">
+              {/* Description */}
+              <p className="mt-4 break-keep text-[13px] leading-6 text-[#6d7280] sm:mt-6 sm:text-sm sm:leading-7">
                 {item.description}
               </p>
             </article>
           ))}
         </div>
 
-        <div className="mt-10 border border-[#c6aa73]/30 bg-[#fffdfa] px-6 py-6 sm:px-8">
-          <p className="text-sm font-medium text-[#17233c]">
-            정산 방식 변경 안내
-          </p>
+        {/* ======================
+            Change Notice
+        ====================== */}
+        <div className="mt-8 border border-[#c6aa73]/30 bg-[#fffdfa] px-5 py-5 sm:mt-10 sm:px-8 sm:py-6">
+          <div className="flex items-start gap-3">
+            <div className="mt-[3px] flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[#c6aa73]/50 text-[10px] font-semibold text-[#a3844e]">
+              i
+            </div>
 
-          <p className="mt-2 text-sm leading-7 text-[#6d7280]">
-            정산 방식은 예식일 7일 전까지 변경 가능합니다.
-            이후에는 원활한 현장 운영을 위해 변경이 어렵습니다.
-          </p>
+            <div>
+              <p className="text-[13px] font-semibold text-[#17233c] sm:text-sm">
+                정산 방식 변경 안내
+              </p>
+
+              <p className="mt-1.5 break-keep text-[12px] leading-6 text-[#6d7280] sm:mt-2 sm:text-sm sm:leading-7">
+                정산 방식은 예식일 7일 전까지 변경 가능합니다.
+                이후에는 원활한 현장 운영을 위해 변경이 어렵습니다.
+              </p>
+            </div>
+          </div>
         </div>
+
       </div>
     </section>
   )

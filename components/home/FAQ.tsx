@@ -1,75 +1,254 @@
-const faqs = [
-  {
-    question: "예약은 언제까지 가능한가요?",
-    answer:
-      "예약 가능 여부는 예식일과 지역, 현장 상황에 따라 달라집니다. 가능한 일정은 예약 및 문의 페이지에서 확인해 주세요.",
-  },
-  {
-    question: "평일 예식도 가능한가요?",
-    answer:
-      "MERIVUE는 현재 토요일과 일요일 예식만 예약 가능합니다.",
-  },
-  {
-    question: "정산 방식은 변경할 수 있나요?",
-    answer:
-      "정산 방식은 예식일 7일 전까지 변경 가능합니다. 이후에는 원활한 현장 운영을 위해 변경이 어렵습니다.",
-  },
-  {
-    question: "보증인원 100명을 초과하면 어떻게 되나요?",
-    answer:
-      "보증인원 초과 시 50명 추가마다 100,000원의 추가 비용이 발생합니다.",
-  },
-  {
-    question: "예약 신청하면 바로 확정되나요?",
-    answer:
-      "예약 신청은 접수 단계이며, 일정과 서비스 가능 여부를 확인한 후 상담을 통해 최종 확정됩니다.",
-  },
-]
+"use client"
+
+import { useEffect, useMemo, useState } from "react"
+
+type FAQItem = {
+  id: string
+  question: string
+  answer: string
+  category: string
+  order: number
+}
+
+type ApiResponse = {
+  faqs: FAQItem[]
+}
 
 export default function FAQ() {
+  const [faqs, setFaqs] = useState<FAQItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+  const [activeCategory, setActiveCategory] =
+    useState("전체")
+  const [openId, setOpenId] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function loadFaqs() {
+      try {
+        setLoading(true)
+        setError(false)
+
+        const response = await fetch("/api/faqs", {
+          cache: "no-store",
+        })
+
+        if (!response.ok) {
+          throw new Error("FAQ 조회 실패")
+        }
+
+        const data: ApiResponse = await response.json()
+
+        setFaqs(data.faqs ?? [])
+      } catch (error) {
+        console.error(error)
+        setError(true)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadFaqs()
+  }, [])
+
+  const categories = useMemo(() => {
+    const uniqueCategories = Array.from(
+      new Set(
+        faqs
+          .map((item) => item.category)
+          .filter(Boolean)
+      )
+    )
+
+    return ["전체", ...uniqueCategories]
+  }, [faqs])
+
+  const filteredFaqs = useMemo(() => {
+    if (activeCategory === "전체") {
+      return faqs
+    }
+
+    return faqs.filter(
+      (item) => item.category === activeCategory
+    )
+  }, [faqs, activeCategory])
+
+  function toggleFaq(id: string) {
+    setOpenId((prev) =>
+      prev === id ? null : id
+    )
+  }
+
+  function changeCategory(category: string) {
+    setActiveCategory(category)
+    setOpenId(null)
+  }
+
   return (
-    <section className="bg-[#f8f5ef] px-5 py-24 sm:px-6 md:py-32 lg:px-8">
+    <section
+      id="faq"
+      className="scroll-mt-20 bg-white px-5 py-16 sm:px-6 md:py-20"
+    >
       <div className="mx-auto max-w-5xl">
-        <div className="text-center">
-          <p className="text-xs tracking-[0.3em] text-[#a3844e]">
-            FREQUENTLY ASKED QUESTIONS
+
+        {/* ======================
+            Heading
+        ====================== */}
+        <div className="mx-auto max-w-2xl text-center">
+          <p className="text-[10px] font-semibold tracking-[0.28em] text-[#B5965B] sm:text-xs">
+            FAQ
           </p>
 
-          <h2 className="mt-5 text-3xl font-medium tracking-tight text-[#17233c] sm:text-4xl md:text-5xl">
+          <h2 className="mt-4 text-[28px] font-semibold tracking-[-0.03em] text-[#17233C] sm:text-3xl md:text-4xl">
             자주 묻는 질문
           </h2>
+
+          <p className="mt-4 break-keep text-[13px] leading-6 text-[#6F7682] sm:mt-5 sm:text-sm sm:leading-7 md:text-base">
+            MERIVUE 이용 전 자주 확인하시는
+            <br className="sm:hidden" />
+            {" "}
+            내용을 안내드립니다.
+          </p>
         </div>
 
-        <div className="mt-14 border-t border-[#17233c]/10">
-          {faqs.map((faq, index) => (
-            <details
-              key={faq.question}
-              className="group border-b border-[#17233c]/10"
-            >
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-5 py-6">
-                <div className="flex items-center gap-5">
-                  <span className="text-xs text-[#a3844e]">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
+        {/* ======================
+            Loading
+        ====================== */}
+        {loading && (
+          <div className="py-16 text-center text-[13px] text-[#8B8F96] sm:py-20 sm:text-sm">
+            자주 묻는 질문을 불러오고 있습니다.
+          </div>
+        )}
 
-                  <h3 className="text-base font-medium text-[#17233c] sm:text-lg">
-                    {faq.question}
-                  </h3>
+        {/* ======================
+            Error
+        ====================== */}
+        {!loading && error && (
+          <div className="mt-10 border border-[#E2DED7] bg-[#F8F6F2] px-5 py-12 text-center sm:mt-14 sm:px-6 sm:py-14">
+            <p className="text-[13px] text-[#777] sm:text-sm">
+              자주 묻는 질문을 불러오지 못했습니다.
+            </p>
+          </div>
+        )}
+
+        {!loading &&
+          !error &&
+          faqs.length > 0 && (
+            <>
+              {/* ======================
+                  Category
+              ====================== */}
+              {categories.length > 2 && (
+                <div className="mt-9 flex flex-wrap justify-center gap-2 sm:mt-12">
+                  {categories.map((category) => {
+                    const active =
+                      activeCategory === category
+
+                    return (
+                      <button
+                        key={category}
+                        type="button"
+                        onClick={() =>
+                          changeCategory(category)
+                        }
+                        className={`min-h-10 rounded-full border px-4 py-2 text-[12px] font-medium transition sm:px-5 sm:py-2.5 sm:text-sm ${
+                          active
+                            ? "border-[#17233C] bg-[#17233C] text-white"
+                            : "border-[#DED9D1] bg-white text-[#6F7682] md:hover:border-[#17233C] md:hover:text-[#17233C]"
+                        }`}
+                      >
+                        {category}
+                      </button>
+                    )
+                  })}
                 </div>
+              )}
 
-                <span className="text-xl font-light text-[#a3844e] transition-transform duration-300 group-open:rotate-45">
-                  +
-                </span>
-              </summary>
+              {/* ======================
+                  FAQ List
+              ====================== */}
+              <div className="mt-9 border-t border-[#E7E2DA] sm:mt-12">
+                {filteredFaqs.map((item) => {
+                  const opened =
+                    openId === item.id
 
-              <div className="pb-7 pl-10 pr-6 sm:pl-12">
-                <p className="max-w-3xl text-sm leading-7 text-[#6d7280]">
-                  {faq.answer}
-                </p>
+                  return (
+                    <div
+                      key={item.id}
+                      className="border-b border-[#E7E2DA]"
+                    >
+                      {/* Question */}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          toggleFaq(item.id)
+                        }
+                        className="flex w-full items-start justify-between gap-3 py-5 text-left sm:gap-6 sm:py-6 md:py-7"
+                        aria-expanded={opened}
+                      >
+                        <div className="flex min-w-0 flex-1 items-start gap-3 sm:gap-4">
+
+                          {/* Q */}
+                          <span className="mt-[2px] shrink-0 text-[10px] font-semibold tracking-[0.16em] text-[#B5965B] sm:text-xs">
+                            Q
+                          </span>
+
+                          {/* Question Content */}
+                          <div className="min-w-0 flex-1">
+                            {item.category && (
+                              <p className="mb-1.5 text-[9px] font-medium tracking-[0.12em] text-[#A19B91] sm:mb-2 sm:text-[10px]">
+                                {item.category}
+                              </p>
+                            )}
+
+                            <h3 className="break-keep text-[14px] font-semibold leading-[1.65] text-[#17233C] sm:text-sm sm:leading-7 md:text-base">
+                              {item.question}
+                            </h3>
+                          </div>
+                        </div>
+
+                        {/* Plus */}
+                        <span
+                          className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center text-[22px] font-light leading-none text-[#17233C] transition-transform duration-300 sm:h-8 sm:w-8 sm:text-xl ${
+                            opened
+                              ? "rotate-45"
+                              : ""
+                          }`}
+                          aria-hidden="true"
+                        >
+                          +
+                        </span>
+                      </button>
+
+                      {/* Answer */}
+                      {opened && (
+                        <div className="pb-6 pl-[25px] pr-1 sm:pb-7 sm:pl-8 sm:pr-2 md:pb-8 md:pl-10">
+                          <div className="border-l border-[#D9D3C9] pl-4 sm:pl-5">
+                            <p className="whitespace-pre-line break-keep text-[13px] leading-6 text-[#6F7682] sm:text-sm sm:leading-7 md:text-base">
+                              {item.answer}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
-            </details>
-          ))}
-        </div>
+            </>
+          )}
+
+        {/* ======================
+            Empty
+        ====================== */}
+        {!loading &&
+          !error &&
+          faqs.length === 0 && (
+            <div className="mt-10 border border-[#E2DED7] bg-[#F8F6F2] px-5 py-12 text-center sm:mt-14 sm:px-6 sm:py-14">
+              <p className="text-[13px] text-[#777] sm:text-sm">
+                등록된 FAQ가 없습니다.
+              </p>
+            </div>
+          )}
+
       </div>
     </section>
   )
